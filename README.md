@@ -47,6 +47,7 @@ ChatGPT. (2024). Respuesta generada por el modelo ChatGPT de OpenAI. Disponible 
    ```bash
    ./procesar_misiones.sh
    ```
+Trainaed model:https://drive.google.com/file/d/1wHxQt43cHLOWw0_zH-25S6KqnOV6cdu3/view?usp=sharing
 
 ## Scripts Principales
 
