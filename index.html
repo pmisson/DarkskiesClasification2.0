@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galería de Imágenes Clasificadas</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .language-switch, .mission-filter {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .gallery {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .image-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin: 15px;
+            padding: 15px;
+            width: 280px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        .image-card:hover {
+            transform: scale(1.05);
+        }
+        .image-card img {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+        .image-id {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #555;
+        }
+        .probabilities {
+            margin-top: 10px;
+            text-align: left;
+            font-size: 14px;
+        }
+        .probability {
+            margin-bottom: 5px;
+        }
+        .highlight {
+            color: red;
+            font-weight: bold;
+        }
+        .links {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .pagination {
+            margin: 30px 0;
+            text-align: center;
+        }
+        .pagination button {
+            margin: 0 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #6200ea;
+            color: #fff;
+            transition: background-color 0.3s;
+        }
+        .pagination button:hover {
+            background-color: #3700b3;
+        }
+        .pagination span {
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+<h1 id="title">Galería de Imágenes Clasificadas</h1>
+
+<div class="language-switch">
+    <button onclick="setLanguage('es')">Español</button>
+    <button onclick="setLanguage('en')">English</button>
+</div>
+
+<div class="mission-filter">
+    <label for="missionSelect" id="missionLabel">Seleccione una misión:</label>
+    <select id="missionSelect" onchange="filterByMission()">
+        <option value="all">Todas las misiones</option>
+        <!-- Las opciones de las misiones se añadirán dinámicamente -->
+    </select>
+</div>
+
+<div class="gallery" id="gallery">
+    <!-- Las imágenes se insertarán aquí -->
+</div>
+
+<div class="pagination">
+    <button id="prevPage">Anterior</button>
+    <span id="pageNumber">Página: 1</span>
+    <button id="nextPage">Siguiente</button>
+</div>
+
+<script>
+    let currentPage = 1;
+    const imagesPerPage = 14;
+    let csvData = [];
+    let totalRows = 0;
+    let currentLanguage = navigator.language.startsWith('en') ? 'en' : 'es';
+    let filteredData = [];  // Datos filtrados por misión
+
+    // Traducciones para los textos
+    const translations = {
+        es: {
+            title: "Galería de Imágenes Clasificadas",
+            previous: "Anterior",
+            next: "Siguiente",
+            page: "Página",
+            viewFicha: "Ver ficha",
+            viewHighRes: "Ver alta resolución",
+            viewLowRes: "Ver baja resolución",
+            selectMission: "Seleccione una misión:"
+        },
+        en: {
+            title: "Classified Image Gallery",
+            previous: "Previous",
+            next: "Next",
+            page: "Page",
+            viewFicha: "View details",
+            viewHighRes: "View high resolution",
+            viewLowRes: "View low resolution",
+            selectMission: "Select a mission:"
+        }
+    };
+
+    // Cambiar el idioma
+    function setLanguage(lang) {
+        currentLanguage = lang;
+        updateTexts();
+        renderPage(currentPage);
+    }
+
+    // Actualizar los textos según el idioma
+    function updateTexts() {
+        document.getElementById("title").textContent = translations[currentLanguage].title;
+        document.getElementById("prevPage").textContent = translations[currentLanguage].previous;
+        document.getElementById("nextPage").textContent = translations[currentLanguage].next;
+        document.getElementById("pageNumber").textContent = `${translations[currentLanguage].page}: ${currentPage}`;
+        document.getElementById("missionLabel").textContent = translations[currentLanguage].selectMission;
+    }
+
+    // Función para cargar el CSV y manejar las imágenes
+    function loadCSVAndGenerateGallery(page) {
+        Papa.parse("classification_results.csv", {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                csvData = results.data;
+                totalRows = csvData.length;
+                filteredData = csvData; // Inicialmente, mostrar todas las imágenes
+                populateMissionSelect();
+                updateTexts();
+                renderPage(page);
+            }
+        });
+    }
+
+    // Función para extraer las misiones únicas y agregarlas al menú desplegable
+    function populateMissionSelect() {
+        const missions = new Set(csvData.map(item => item.file_name.split('-')[0]));
+        const missionSelect = document.getElementById("missionSelect");
+        missions.forEach(mission => {
+            const option = document.createElement("option");
+            option.value = mission;
+            option.textContent = mission;
+            missionSelect.appendChild(option);
+        });
+    }
+
+    // Filtrar las imágenes por la misión seleccionada
+    function filterByMission() {
+        const selectedMission = document.getElementById("missionSelect").value;
+        filteredData = selectedMission === "all"
+            ? csvData
+            : csvData.filter(item => item.file_name.startsWith(selectedMission));
+        currentPage = 1; // Reiniciar a la primera página
+        renderPage(currentPage);
+    }
+
+    // Función para generar las URLs de la ficha, alta resolución, miniatura y baja resolución
+    function generateURLs(imageName) {
+        const baseUrl = "https://eol.jsc.nasa.gov/";
+        const parts = imageName.split('-');
+        const mission = parts[0];
+        const roll = parts[1];
+        const frame = parts[2];
+
+        return {
+            ficha: `${baseUrl}SearchPhotos/photo.pl?mission=${mission}&roll=${roll}&frame=${frame}`,
+            alta: `${baseUrl}DatabaseImages/ESC/large/${mission}/${imageName}.JPG`,
+            baja: `${baseUrl}DatabaseImages/ESC/small/${mission}/${imageName}.JPG`,
+            miniatura: `${baseUrl}DatabaseImages/thumb/${mission}/${imageName}.jpg`
+        };
+    }
+
+    // Función para renderizar una página específica
+    function renderPage(page) {
+        const start = (page - 1) * imagesPerPage;
+        const end = Math.min(start + imagesPerPage, filteredData.length);
+        const galleryDiv = document.getElementById("gallery");
+
+        galleryDiv.innerHTML = ""; // Limpiar la galería antes de añadir nuevas imágenes
+
+        const currentImages = filteredData.slice(start, end);
+        currentImages.forEach(item => {
+            const imageCard = document.createElement("div");
+            imageCard.classList.add("image-card");
+
+            // Generar URLs usando el nombre de la imagen (sin la extensión)
+            const imageName = item.file_name.split('.')[0];
+            const urls = generateURLs(imageName);
+
+            // Añadir el ID de la imagen
+            const imageIdElement = document.createElement("div");
+            imageIdElement.classList.add("image-id");
+            imageIdElement.textContent = imageName;
+            imageCard.appendChild(imageIdElement);
+
+            // Añadir la miniatura
+            const imgElement = document.createElement("img");
+            imgElement.src = urls.miniatura;
+            imageCard.appendChild(imgElement);
+
+            // Añadir enlaces a ficha, alta y baja resolución
+            const linksDiv = document.createElement("div");
+            linksDiv.classList.add("links");
+
+            const linkFicha = document.createElement("a");
+            linkFicha.href = urls.ficha;
+            linkFicha.textContent = translations[currentLanguage].viewFicha;
+            linkFicha.target = "_blank";
+            linksDiv.appendChild(linkFicha);
+
+            const linkAlta = document.createElement("a");
+            linkAlta.href = urls.alta;
+            linkAlta.textContent = translations[currentLanguage].viewHighRes;
+            linkAlta.target = "_blank";
+            linksDiv.appendChild(linkAlta);
+
+            const linkBaja = document.createElement("a");
+            linkBaja.href = urls.baja;
+            linkBaja.textContent = translations[currentLanguage].viewLowRes;
+            linkBaja.target = "_blank";
+            linksDiv.appendChild(linkBaja);
+
+            imageCard.appendChild(linksDiv);
+
+            // Añadir las probabilidades de las categorías
+            const probabilitiesDiv = document.createElement("div");
+            probabilitiesDiv.classList.add("probabilities");
+
+            const categories = {
+                'astronaut': parseFloat(item.astronaut),
+                'aurora': parseFloat(item.aurora),
+                'black': parseFloat(item.black),
+                'city': parseFloat(item.city),
+                'none': parseFloat(item.none),
+                'stars': parseFloat(item.stars),
+                'unknown': parseFloat(item.unknown)
+            };
+
+            let maxCategory = null;
+            let maxProb = -1;
+
+            // Determinar la categoría con la mayor probabilidad
+            for (const category in categories) {
+                if (categories[category] > maxProb) {
+                    maxCategory = category;
+                    maxProb = categories[category];
+                }
+            }
+
+            // Crear el elemento para cada categoría
+            for (const category in categories) {
+                const probElement = document.createElement("div");
+                probElement.classList.add("probability");
+
+                if (category === maxCategory) {
+                    probElement.classList.add("highlight"); // Resaltar en rojo
+                }
+
+                probElement.textContent = `${category}: ${categories[category].toFixed(6)}`;
+                probabilitiesDiv.appendChild(probElement);
+            }
+
+            imageCard.appendChild(probabilitiesDiv);
+            galleryDiv.appendChild(imageCard);
+        });
+
+        // Actualizar el número de página
+        document.getElementById("pageNumber").textContent = `${translations[currentLanguage].page}: ${currentPage}`;
+    }
+
+    // Funciones de paginación
+    document.getElementById("nextPage").addEventListener("click", function() {
+        if (currentPage * imagesPerPage < filteredData.length) {
+            currentPage++;
+            renderPage(currentPage);
+        }
+    });
+
+    document.getElementById("prevPage").addEventListener("click", function() {
+        if (currentPage > 1) {
+            currentPage--;
+            renderPage(currentPage);
+        }
+    });
+
+    // Cargar el CSV y generar la primera página de la galería
+    loadCSVAndGenerateGallery(currentPage);
+</script>
+
+</body>
+</html>
+
+
